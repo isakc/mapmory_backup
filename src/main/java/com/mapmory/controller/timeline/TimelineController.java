@@ -33,6 +33,8 @@ import com.mapmory.common.util.RedisUtil;
 import com.mapmory.common.util.TextToImage;
 import com.mapmory.common.util.TimelineUtil;
 import com.mapmory.services.community.service.CommunityService;
+import com.mapmory.services.recommend.domain.Recommend;
+import com.mapmory.services.recommend.service.RecommendService;
 import com.mapmory.services.timeline.domain.Category;
 import com.mapmory.services.timeline.domain.ImageTag;
 import com.mapmory.services.timeline.domain.KeywordData;
@@ -78,6 +80,18 @@ public class TimelineController {
     
     @Value("${timeline.kakaomap.restKey}")
     private String restKey;
+    
+
+    ///////추천 추가된 부분//////
+	// 맨 위에 추가할 것
+	@Autowired
+	@Qualifier("recommendServiceImpl")
+	private RecommendService recommendService;
+		
+
+    @Value("${page.Size}")
+    private int pageLimit;
+
     
     private int searchOption=2;
 	
@@ -266,7 +280,7 @@ public class TimelineController {
 	
 	@GetMapping("updateTimeline")
 	public String updateTimelineView(Model model,
-			@RequestParam(value="recordNo", required = true) int recordNo) throws Exception,IOException {
+			@RequestParam(name="recordNo", required = true) int recordNo) throws Exception,IOException {
 		Record record=timelineService.getDetailTimeline(recordNo);
 //		record=timelineUtil.imageNameToUrl(record);
 //		record=timelineUtil.mediaNameToUrl(record);
@@ -277,6 +291,19 @@ public class TimelineController {
 		model.addAttribute("apiKey", kakaoMapApiKey);
 		model.addAttribute("updateCountText", TimelineUtil.updateCountToText(record.getUpdateCount()));
 		model.addAttribute("record",record);
+		
+		
+		 // 추천 // 
+		if(record.getRecordText()!=null && !record.getRecordText().trim().equals("")) {
+			recommendService.addSearchData(record); Recommend recommend =
+			recommendService.getRecordData(record, record.getRecordNo());
+			recommend.setPositive(recommendService.getPositive(record.getRecordText()));
+			System.out.println("positive : "+recommend.getPositive());
+			recommendService.updateDataset(recommend);
+			recommendService.saveDatasetToCSV(recommend, "aitems-8982956307867"); // 추천
+		}
+		//
+				
 		return "timeline/updateTimeline";
 	}
 	
@@ -309,14 +336,16 @@ public class TimelineController {
 		}else {
 			record.setTempType(0);
 		}
-		
+		System.out.println("record.getSharedDate() :"+record.getSharedDate());
 		if(sharedDateType!=null&&sharedDateType==1) {
 			if(ContentFilterUtil.checkBadWord(record.getRecordText()) 
 					|| ContentFilterUtil.checkBadWord(record.getRecordTitle())
 					|| ContentFilterUtil.checkBadWord(hashtagText) ) {
 				record.setSharedDate(null);
 			}else {
-				record.setSharedDate(LocalDateTime.now(ZoneId.of("Asia/Seoul")).toString().replace("T", " ").split("\\.")[0]);
+				if(record.getSharedDate()==null || record.getSharedDate().trim().equals("")) {
+					record.setSharedDate(LocalDateTime.now(ZoneId.of("Asia/Seoul")).toString().replace("T", " ").split("\\.")[0]);
+				}
 			}
 		}else {
 			record.setSharedDate(null);
@@ -330,8 +359,21 @@ public class TimelineController {
 		
 		timelineService.updateTimeline(record);
 		
+
+		// 추천 //
+		if(record.getRecordText()!=null && !record.getRecordText().trim().equals("")) {
+			recommendService.addSearchData(record); 
+			Recommend recommend = recommendService.getRecordData(record, record.getRecordNo());
+			recommend.setPositive(recommendService.getPositive(record.getRecordText()));
+			System.out.println("positive : "+recommend.getPositive());
+			recommendService.updateDataset(recommend);
+			recommendService.saveDatasetToCSV(recommend, "aitems-8982956307867"); // 추천
+		}
+		//
+		
 		String uri="?recordNo="+record.getRecordNo();
 		return "redirect:/timeline/getDetailTimeline"+uri;
+
 	}
 
 	@GetMapping("deleteTimeline")
@@ -354,46 +396,57 @@ public class TimelineController {
 		}
 		
 		timelineService.deleteTimeline(recordNo);
-		String uri="?selectDay="+selectDay;
-		return "redirect:/timeline/getTimelineList"+uri;
+		String param="?selectDay="+selectDay;
+		return "redirect:/timeline/getTimelineList"+param;
 	}
 	
 	@GetMapping("getTimecapsuleList")
 	public String getTimecapsuleList(Model model,
+			@RequestParam(name="tempType", required = true) int tempType,
 			HttpServletRequest request
 			) throws Exception,IOException{
 		String userId = redisUtil.getSession(request).getUserId();
 		
 		Search search = Search.builder()
 				.userId(userId)
-				.tempType(1)
+				.tempType(tempType)
 				.timecapsuleType(1)
+				.limit(pageLimit)
+				.currentPage(1)
 				.build();
+				
 		
 		model.addAttribute("apiKey", kakaoMapApiKey);
 		model.addAttribute("restKey",restKey);
 		model.addAttribute("userId",userId);
+		model.addAttribute("currentPage",1);
+		model.addAttribute("tempType",tempType);//1일시 타임캡슐 기록, 0일시 임시저장된 타임캡슐 기록
 		model.addAttribute("timecapsuleList", timelineService.getTimelineList(search));
 		return "timeline/getTimecapsuleList";
 	}
 	
-	@GetMapping("getTempTimecapsuleList")
-	public String getTempTimecapsuleList(Model model,
-			HttpServletRequest request
-			) throws Exception,IOException{
-		String userId = redisUtil.getSession(request).getUserId();
-		Search search = Search.builder()
-				.userId(userId)
-				.tempType(0)
-				.timecapsuleType(1)
-				.build();
-		
-		model.addAttribute("apiKey", kakaoMapApiKey);
-		model.addAttribute("restKey",restKey);
-		model.addAttribute("userId",userId);
-		model.addAttribute("timecapsuleList", timelineService.getTimelineList(search));
-		return "timeline/getTempTimecapsuleList";
-	}
+	//getTimecapsuleList에 하나로 합쳤음
+//	@GetMapping("getTempTimecapsuleList")
+//	public String getTempTimecapsuleList(Model model,
+//			HttpServletRequest request
+//			) throws Exception,IOException{
+//		String userId = redisUtil.getSession(request).getUserId();
+//		Search search = Search.builder()
+//				.userId(userId)
+//				.tempType(0)
+//				.timecapsuleType(1)
+//				.limit(pageLimit)
+//				.currentPage(1)
+//				.build();
+//		
+//		model.addAttribute("apiKey", kakaoMapApiKey);
+//		model.addAttribute("restKey",restKey);
+//		model.addAttribute("userId",userId);
+//		model.addAttribute("currentPage",1);
+//		model.addAttribute("checkedSwitch",1);
+//		model.addAttribute("timecapsuleList", timelineService.getTimelineList(search));
+//		return "timeline/getTimecapsuleList";
+//	}
 	
 	@GetMapping("getDetailTimecapsule")
 	public String getDetailTimecapsule(Model model,
@@ -465,10 +518,11 @@ public class TimelineController {
 		
 		timelineService.addTimeline(record);
 		if(record.getTempType()==1) {
-			String uri="?recordNo="+record.getRecordNo();
-			return "redirect:/timeline/getDetailTimecapsule"+uri;
+			String param="?recordNo="+record.getRecordNo();
+			return "redirect:/timeline/getDetailTimecapsule"+param;
 		}else {
-			return "redirect:/timeline/getTempTimecapsuleList";
+			String param="?tempType="+record.getTempType();
+			return "redirect:/timeline/getTimecapsuleList"+param;
 		}
 	}
 	
@@ -513,10 +567,11 @@ public class TimelineController {
 		
 		timelineService.updateTimeline(record);
 		if(record.getTempType()==1) {
-			String uri="?recordNo="+record.getRecordNo();
-			return "redirect:/timeline/getDetailTimecapsule"+uri;
+			String param="?recordNo="+record.getRecordNo();
+			return "redirect:/timeline/getDetailTimecapsule"+param;
 		}else {
-			return "redirect:/timeline/getTempTimecapsuleList";
+			String param="?tempType="+record.getTempType();
+			return "redirect:/timeline/getTimecapsuleList"+param;
 		}
 	}
 
@@ -534,7 +589,8 @@ public class TimelineController {
 		}
 		
 		timelineService.deleteTimeline(recordNo);
-		return "redirect:/timeline/getTimecapsuleList";
+		String param="?tempType="+record.getTempType();
+		return "redirect:/timeline/getTimecapsuleList"+param;
 	}
 	
 	@GetMapping("getKeywordList")
@@ -547,7 +603,7 @@ public class TimelineController {
 		for(KeywordData k :timelineService.getKeywordList(userId)) {
 			Map<String,Object> map=new HashMap<String, Object>();
 			map.put("word", k.getKeyword());
-			map.put("size", k.getKeywordCount()*12+10);
+			map.put("size", k.getKeywordCount()*8+10);
 			keywordList.add(map);
 		}
 		ObjectMapper objectMapper = new ObjectMapper();
@@ -591,6 +647,37 @@ public class TimelineController {
 	@GetMapping("footer")
 	public String footer() throws Exception,IOException {
 		return "common/footer";
+	}
+	
+	@GetMapping("addTimelienForRecord")
+	public String addTimelienForRecordView(Model model,
+			HttpServletRequest request) throws Exception,IOException {
+		
+		model.addAttribute("restKey",restKey);
+		model.addAttribute("apiKey", kakaoMapApiKey);
+		model.addAttribute("userId",redisUtil.getSession(request).getUserId());
+		model.addAttribute("category", timelineService.getCategoryList());
+		return "timeline/addTimelienForRecord";
+	}
+	
+	@PostMapping("addTimelienForRecord")
+	public String addTimelienForRecord(Model model,
+			@ModelAttribute(name="record") Record record,
+			@RequestParam(name="hashtagText",required = false) String hashtagText,
+			@RequestParam(name="mediaFile",required = false) MultipartFile mediaFile,
+			@RequestParam(name="imageFile",required = false) List<MultipartFile> imageFile,
+			HttpServletRequest request
+			) throws Exception,IOException {
+				record.setRecordTitle(record.getCheckpointAddress()+"_"
+				+LocalDateTime.now(ZoneId.of("Asia/Seoul")).toString().replace("T"," ").split("\\.")[0]);
+				record.setUpdateCount(-1);
+				record.setTempType(0);
+				record.setTimecapsuleType(0);
+				record.setCategoryNo(0);
+				
+				int recordNo=timelineService.addTimeline(record);
+				String param="?recordNo="+recordNo;
+				return "redirect:/timeline/updateTimeline"+param;
 	}
 	
 	
@@ -776,10 +863,6 @@ public class TimelineController {
 //				.selectDate(Date.valueOf("2024-05-29"))
 //				.build();
 //		model.addAttribute("list16",timelineService.getSummaryRecord(search));
-	}
-	
-	public void updateTimeline(Model model) throws Exception,IOException{
-//		model.addAttribute("record",timelineService.getDetailTimeline(1));
 	}
 	
 	

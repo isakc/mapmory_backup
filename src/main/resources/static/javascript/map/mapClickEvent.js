@@ -117,7 +117,6 @@ $('#private, #public, #follow').on('change', function(event) {
 
 $(document).on("click", "#routeButton", function(event) {
 	event.stopPropagation();
-
 	$('.routeAdditionalButtons').css('visibility', function(i, visibility) {
 		return (visibility === 'visible') ? 'hidden' : 'visible';
 	});
@@ -200,27 +199,42 @@ $('#suggestions').on('click', 'div', function() {
 
 $('#toggle-switch').click(function() {
 	$(this).toggleClass('active');
+	
 
 	if ($(this).hasClass('active')) {
 		$(this).attr('title', '추천');
 		checkboxGroup.css('display', 'none');
 		searchBoxGroup.css('display', 'none');
+		mapFilterButton.hide();
 		getRecommendPlace();
 	} else {
 		$(this).attr('title', '기록');
 		checkboxGroup.css('display', 'inline-block');
 		searchBoxGroup.css('display', 'block');
+		mapFilterButton.show();
 		searchRecord();
 	}
 });// 토글 스위치
 
-refrestButtn.on('click', function() {
+refreshButton.on('click', function() {
 	if (searchBoxGroup.css('display') === 'none') {
 		getRecommendPlace();
 	} else {
-		location.reload();
+		searchRecord();
 	}
 });// 재검색 버튼 클릭시
+
+resetButton.on('click', function(){
+	$('input[name="searchKeyword"]').val('');
+	$('#radius5').prop('checked', true);
+	$('#private').prop('checked', true);
+	$('#public').prop('checked', true);
+	$('#follow').prop('checked', true);
+	
+	$('#private, #public, #follow').each(function() {
+      $(this).trigger('change');
+    });//수동으로 change 이벤트 트리거
+});//초기화 버튼 클릭시
 
 kakao.maps.event.addListener(map, 'click', function() {
 	hideResultDivs();
@@ -238,11 +252,13 @@ listBtn.on('click', function(){
 		$(".infoItem").removeClass('on');
 		result.addClass('on');
 		listBtn.addClass('list');
-		listBtn.text("지도에서 보기");
+		listBtn.html("<i class='fas fa-map'></i> 지도");
+		//목록을 눌렀을 경우
 	}else{
 		$(".infoItem").removeClass('on');
 		$(".swiper-container").addClass('on');
 		listBtn.removeClass('list');
-		listBtn.text("리스트로 보기");
+		listBtn.html("<i class='fas fa-list'></i> 목록");
+		//지도를 눌렀을 경우
 	}
 }) //리스트로 보기, 넘기기로 보기 토글

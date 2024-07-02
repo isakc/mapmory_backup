@@ -6,10 +6,13 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
+import javax.servlet.http.HttpServletRequest;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
+import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -78,7 +81,7 @@ public class TimelineRestController {
 	private String speechFolderName;
 
 	@Value("${page.Size}")
-	private int pageSize;
+	private int pageLimit;
 	
 	@Value("${page.Unit}")
 	private int pageUnit;
@@ -92,7 +95,8 @@ public class TimelineRestController {
 			@RequestBody Record record,
 			Map<String,Object> map) throws Exception,IOException {
 		map=new HashMap<String, Object>();
-		record.setRecordTitle(record.getCheckpointAddress()+"_"+LocalDateTime.now(ZoneId.of("Asia/Seoul")).toString().replace("T"," ").split("\\.")[0]);
+		record.setRecordTitle(record.getCheckpointAddress()+"_"
+		+LocalDateTime.now(ZoneId.of("Asia/Seoul")).toString().replace("T"," ").split("\\.")[0]);
 		record.setUpdateCount(-1);
 		record.setTempType(0);
 		record.setTimecapsuleType(0);
@@ -102,9 +106,9 @@ public class TimelineRestController {
 		int recordNo=timelineService.addTimeline(record);
 		record=timelineService.getDetailTimeline(recordNo);
 		if(recordNo!=0) {
-			text+="<span>체크포인트가 저장 완료 : "+record.getLatitude()+"/"+record.getLongitude()+"/"
-					+record.getCheckpointAddress()+"/"+record.getCheckpointDate()+"</span>";
-			if(countAddressDto.getCheckpointCount()>1) {
+			text += "<span>체크포인트가 저장 완료, 주소 :"/* +record.getLatitude()+"/"+record.getLongitude()+"/" */
+					+record.getCheckpointAddress()+"/일시 :"+record.getCheckpointDate()+"</span>";
+			if(countAddressDto!=null && (countAddressDto.getCheckpointCount()>0) ) {
 				text+="<br/><br/><span>현재 위치에 "+ (countAddressDto.getCheckpointCount()+1) + " 회, 재방문하였습니다. 최근 방문 일시는 " 
 						+ countAddressDto.getCheckpointDate()+ " 입니다.</span>";
 			}
@@ -151,6 +155,46 @@ public class TimelineRestController {
 		map.put("text", text);
 		return ResponseEntity.ok(map);
 	}
+	
+	@GetMapping("getTimecapsuleList")
+	public ResponseEntity<Map<String, Object>> getTimecapsuleList(
+			@RequestParam(name = "userId", required = true) String userId,
+			@RequestParam(name = "currentPage", required = true) int currentPage,
+			@RequestParam(name="tempType", required = true) int tempType,
+			Map<String, Object> response
+			) throws Exception,IOException{
+		
+		Search search = Search.builder()
+				.userId(userId)
+				.tempType(tempType)
+				.timecapsuleType(1)
+				.limit(pageLimit)
+				.currentPage(currentPage).build();
+		List<Record> recordList = timelineService.getTimelineList(search);
+		response = new HashMap<>();
+        response.put("records", recordList);
+		return ResponseEntity.ok(response);
+	}
+	
+	//getTimecapsuleList에 하나로 합쳤음
+//	@GetMapping("getTempTimecapsuleList")
+//	public ResponseEntity<Map<String, Object>> getTempTimecapsuleList(
+//			@RequestParam(name = "userId", required = true) String userId,
+//			@RequestParam(name = "currentPage", required = true) int currentPage,
+//			Map<String, Object> response
+//			) throws Exception,IOException{
+//		
+//		Search search = Search.builder()
+//				.userId(userId)
+//				.tempType(0)
+//				.timecapsuleType(1)
+//				.limit(pageLimit)
+//				.currentPage(currentPage).build();
+//		List<Record> recordList = timelineService.getTimelineList(search);
+//		response = new HashMap<>();
+//        response.put("records", recordList);
+//		return ResponseEntity.ok(response);
+//	}
 	
 	@PostMapping("addCategory")
 	public ResponseEntity<Map<String, Object>> addCategory(@ModelAttribute Category category,
@@ -270,7 +314,7 @@ public class TimelineRestController {
 		
 		Search search = Search.builder()
 				.userId(userId)
-				.limit(pageSize)
+				.limit(pageLimit)
 				.currentPage(currentPage)
 				.logsType(logsType).build();
 		

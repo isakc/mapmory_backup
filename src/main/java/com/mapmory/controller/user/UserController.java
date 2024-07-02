@@ -35,6 +35,7 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -282,19 +283,9 @@ public class UserController {
 	
 
 	@GetMapping("/getSecondaryAuthView")
-	public void getSecondaryAuthView() {
-		
-		// login interceptor에서 직접 접근하는 것을 막아야 함
-		/*
-		Cookie cookie = findCookie("SECONDARYAUTH", request);
-		if(cookie == null) 
-			return "redirect:/";
-		*/
-		
-		// Map<String, String> map = redisUtilMap.select(cookie.getValue(), Map.class);
-		// String userId = map.get("userId");
-		
-		// model.addAttribute("userId", userId);
+	public void getSecondaryAuthView(@RequestParam String userId, Model model) {
+				
+		model.addAttribute("userId", userId);
 	}
 	
 	@GetMapping("/getAddSecondaryAuthView")
@@ -348,12 +339,12 @@ public class UserController {
 	}
 	
 	@GetMapping("/getProfile")
-	public void getProfile(HttpServletRequest request, @RequestParam String userId, Model model) throws Exception {
+	public void getProfile(HttpServletRequest request, @RequestParam(required=false) String userId, Model model) throws Exception {
 		
 		String myUserId = redisUtil.getSession(request).getUserId();
 
 		Profile profile;
-		if( userId.equals(myUserId) ) {
+		if( (userId == null) || userId.equals(myUserId) ) {
 			
 			profile = setProfileViewData(myUserId);
 			model.addAttribute("myProfile", true);
@@ -475,42 +466,6 @@ public class UserController {
 		
 	}
 
-	
-	
-	@PostMapping("/updateProfile")  // @RequestParam(name="old-profile-name") String oldProfileName, 
-	public String postUpdateProfile(@RequestParam(name = "profile", required=false) MultipartFile file, @RequestParam String introduction, Model model, HttpServletRequest request) throws Exception {
-		
-		String userId = redisUtil.getSession(request).getUserId();
-		
-		boolean result;
-		if( !file.isEmpty()) {
-			
-			if(contentFilterUtil.checkBadImage(file)) {
-				System.out.println("부적절한 이미지입니다.");
-			}
-			result = userService.updateProfile(file, userId, file.getOriginalFilename(), introduction);
-			
-		} else {
-			
-			/// 자기소개만 변경하는 경우
-			
-			result = userService.updateProfile(userId, introduction);
-		}
-
-		System.out.println(result);
-		
-		/*
-		User user = userService.getDetailUser(userId);
-		
-		String cdnPath = objectStorageUtil.getImageUrl(user.getProfileImageName(), PROFILE_FOLDER_NAME);
-		
-		model.addAttribute("profileImage", cdnPath);
-		*/
-		
-		return "redirect:/user/getProfile?userId="+userId;
-	}
-
-
 	// for navigation
 	@PostMapping("/checkSecondaryKey")
 	public String checkKey(@RequestBody GoogleUserOtpCheck googleUserOtpCheck, @RequestParam(required=false) String changePassword) throws InvalidKeyException, NoSuchAlgorithmException {
@@ -529,7 +484,7 @@ public class UserController {
 	}
 	
 	@RequestMapping("/naver/auth/callback")
-	public String naverLogin(HttpServletRequest request, @RequestParam String code, @RequestParam String state, HttpServletResponse response) throws Exception {
+	public String naverLogin(HttpServletRequest request, @RequestParam String code, @RequestParam String state, HttpServletResponse response, Model model) throws Exception {
 		
 		System.out.println("Flag");
 		
@@ -587,49 +542,27 @@ public class UserController {
 	    	}	    	
 	    } else {
 	    	
+	    	// 로그인
+	    	if(userService.checkSetSecondaryAuth(userId)) {
+	    		
+	    		model.addAttribute("userId", userId);
+	    		// return "redirect:/user/getSecondaryAuthView/"+userId;
+	    		return "redirect:/user/getSecondaryAuthView";
+	    	}
+	    	
 	    	User user = userService.getDetailUser(userId);
         	byte role=user.getRole();
         	
 	    	return doSocialLogin(userId, role, response);
-	    	/*
-	    	if(role == 1)
-	    		return "redirect:/map";
-	    	else
-	    		return "redirect:/user/admin/getAdminMain";
-	    	*/
 	    }
 	}
-	
-	/// 현재 문제가 있다.
-	/*
-	@RequestMapping("/google/auth/callback")
-	public void googleLogin(@RequestParam String code, HttpServletResponse response) throws Exception {
 
-		// System.out.println("code : " + code);
-		
-		 // userService.getGoogleProfie(code);
-		
-		GoogleToken token = userService.getGoogleToken(code);
-		GoogleJwtPayload payload = userService.getGoogleProfile(token.getId_token());
-		System.out.println(payload);
-	}
-	*/
-	
 	@GetMapping("/getNaverLoginView")
 	public String getNaverLoginView() {
 		
 		String naverAuthUrl = "https://nid.naver.com/oauth2.0/authorize?client_id="+naverClientId+"&redirect_url="+naverRedirectUri+"&response_type=code&state="+naverState;
 		
 		return "redirect:"+naverAuthUrl;
-		
-	}
-	
-	@GetMapping("/getGoogleLoginView")
-	public String getGoogleLoginView() {
-		
-		String googleAuthUrl = "https://kauth.kakao.com/oauth/authorize?client_id=" + kakaoClientId + "&redirect_uri=" + kakaoRedirectUri + "&response_type=code";
-		
-		return "redirect:"+googleAuthUrl;
 		
 	}
 	
@@ -794,22 +727,15 @@ public class UserController {
             } else {
 
             	// 로그인 처리
+    	    	if(userService.checkSetSecondaryAuth(userId)) {
+    	    		
+    	    		model.addAttribute("userId", userId);
+    	    		// return "redirect:/user/getSecondaryAuthView/"+userId;
+    	    		return "redirect:/user/getSecondaryAuthView";
+    	    	}
+            	
             	User user = userService.getDetailUser(userId);
             	byte role=user.getRole();    
-            	/*
-            	String uuid = UUID.randomUUID().toString();
-            	loginService.setSession(userId, user.getRole(), uuid, false);
-            	Cookie cookie = createLoginCookie(uuid, false);
-            	response.addCookie(cookie);
-            	*/
-            	
-            	/*
-            	loginService.acceptLogin(userId, role, response, false);
-            	
-            	
-                return "redirect:/map"; // 메인 페이지로 리다이렉트
-            	// return ResponseEntity.ok("map");
-            	*/
             	
             	return doSocialLogin(userId, role, response);
             }
@@ -881,6 +807,8 @@ public class UserController {
 	
 	private String doSocialLogin(String userId, byte role, HttpServletResponse response) throws Exception {
     	
+		System.out.println("소셜 로그인 성공!");
+		
 		// 소셜 로그인 회원은 보안 상 로그인 유지 설정 불가하게 만듦. 어차피 로그인하기 편해서 불편하지는 않을 것으로 생각됨.
     	loginService.acceptLogin(userId, role, response, false);
     	userService.addLoginLog(userId);

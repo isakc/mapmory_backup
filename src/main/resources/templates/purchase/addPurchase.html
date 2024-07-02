@@ -2,8 +2,9 @@
 <html xmlns:th="http://www.thymeleaf.org" lang="ko">
 <head>
     <meta charset="UTF-8" name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>간편 결제</title>
+    <title>결제</title>
     
+	<th:block th:replace="common/faviconLink :: link"></th:block>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootswatch/5.2.3/cosmo/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="/css/common/footer.css">
@@ -125,7 +126,19 @@
 </head>
 <body>
     <div id="content-for-footer">
-        <div class="container">
+    	<div th:if="${message != null}" class="container">
+			<div class="text-center">
+				<h1 class="text-center mb-4" style="color: var(--primary-color);">현재 구독 중입니다!</h1>
+
+				<p>
+					<a href="/purchase/getDetailSubscription" class="btn btn-primary text-center mb-4">내 구독으로 가기</a>
+				</p>
+
+			</div>
+		</div>
+    
+    
+        <div th:if="${message == null}" class="container">
             <h1 class="text-center mb-4" style="color: var(--primary-color);">간편 결제</h1>
             
             <div class="purchase mb-3">

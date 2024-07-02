@@ -244,9 +244,14 @@ public class UserServiceImpl implements UserService {
 		updatePassword(userId, userPassword);
 		*/
 	
-		String userId="user_152";
-		String userPassword="password!30";
+		String userId="user_146";
+		String userPassword="password!23";
 		updatePassword(userId, userPassword);
+		
+		userId="user_147";
+		userPassword="password!23";
+		updatePassword(userId, userPassword);
+		
 
 		
 		/*
@@ -502,6 +507,8 @@ public class UserServiceImpl implements UserService {
 						.currentPage(currentPage)
 						.limit(limit)
 						.build();
+		
+		System.out.println("검색어 : " + searchKeyword);
 		
 		return userDao.selectFollowList(search);
 	}
@@ -1275,7 +1282,16 @@ public class UserServiceImpl implements UserService {
 		Message message = new Message();
 		message.setFrom(phoneNum);    	// 발신전화번호. 테스트시에는 발신,수신 둘다 본인 번호로 하면 됨
 		message.setTo(to);    				// 수신전화번호 (ajax로 view 화면에서 받아온 값으로 넘김)
-		message.setText("인증번호는 : [" + codeValue + "]");
+		// message.setText("인증번호는 : [" + codeValue + "]");
+		
+		StringBuilder sb = new StringBuilder();
+
+        sb.append("휴대폰 인증 안내:\n")
+          .append("Mapmory에 오신 것을 환영합니다. 회원가입을 완료하려면 휴대폰 인증이 필요합니다.\n")
+          .append("다음의 인증번호를 입력해주세요.\n")
+          .append("["+codeValue+"]\n");
+        
+        message.setText(sb.toString());
 
 		SingleMessageSendingRequest request = new SingleMessageSendingRequest(message);
 		SingleMessageSentResponse response = messageService.sendOne(request); // 메시지 전송
@@ -1307,7 +1323,7 @@ public class UserServiceImpl implements UserService {
             sb.append("&client_id="+kakaoCilent );  //본인이 발급받은 key
 
             sb.append("&redirect_uri=https://mapmory.co.kr/user/kakaoCallback&response_type=code");     // 본인이 설정해 놓은 경로
-            //sb.append("&redirect_uri=http://localhost:8000/user/kakaoCallback&response_type=code");     // 본인이 설정해 놓은 경로
+            /// sb.append("&redirect_uri=http://localhost:8000/user/kakaoCallback&response_type=code");     // 본인이 설정해 놓은 경로
 
             sb.append("&code=" + authorizeCode);
             System.out.println("authorize_code : " + authorizeCode);
