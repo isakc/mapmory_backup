@@ -534,6 +534,39 @@ public class UserRestController {
 		
 		return ResponseEntity.ok(result);
 	}
+	
+	@PostMapping("/updateProfile") 
+	public ResponseEntity<Boolean> updateProfile(@RequestParam(name = "profile", required=false) MultipartFile file, @RequestParam String introduction, Model model, HttpServletRequest request) throws Exception {
+		
+		String userId = redisUtil.getSession(request).getUserId();
+		
+		boolean result;
+		
+		boolean isBadWord = contentFilterUtil.checkBadWord(introduction);
+		if(isBadWord) {
+			
+			return ResponseEntity.ok(false);
+		}
+		
+		if( !file.isEmpty()) {
+			
+			boolean isBadImg = contentFilterUtil.checkBadImage(file);
+			if(isBadImg) {
+				
+				return ResponseEntity.ok(false);
+			}
+			
+			result = userService.updateProfile(file, userId, file.getOriginalFilename(), introduction);
+			
+		} else {
+			
+			/// 자기소개만 변경하는 경우
+			result = userService.updateProfile(userId, introduction);
+		}
+
+		// return "redirect:/user/getProfile?userId="+userId;
+		return ResponseEntity.ok(true);
+	}
 
 	@PostMapping("/updateFollowState")
 	public ResponseEntity<Boolean> updateFollowState() {
@@ -702,31 +735,7 @@ public class UserRestController {
 		return ResponseEntity.ok(!result);
 	}
 	
-	@PostMapping("/updateProfile") 
-	public ResponseEntity<Boolean> postUpdateProfile(@RequestParam(name = "profile", required=false) MultipartFile file, @RequestParam String introduction, Model model, HttpServletRequest request) throws Exception {
-		
-		String userId = redisUtil.getSession(request).getUserId();
-		
-		boolean result;
-		if( !file.isEmpty()) {
-			
-			boolean isBad = contentFilterUtil.checkBadImage(file);
-			if(isBad) {
-				
-				return ResponseEntity.ok(false);
-			}
-			
-			result = userService.updateProfile(file, userId, file.getOriginalFilename(), introduction);
-			
-		} else {
-			
-			/// 자기소개만 변경하는 경우
-			result = userService.updateProfile(userId, introduction);
-		}
 
-		// return "redirect:/user/getProfile?userId="+userId;
-		return ResponseEntity.ok(true);
-	}
 	
 	@PostMapping(path="/checkBadWord")
 	public ResponseEntity<Boolean> checkBadWord(@RequestBody Map<String, String> value) {
@@ -882,10 +891,9 @@ public class UserRestController {
         .append("저희 Mapmory 서비스에 가입해 주셔서 감사합니다! 회원가입을 완료하려면 이메일 주소를 인증해야 합니다. 아래의 단계를 따라 주세요:<br><br>")
         .append("이메일 주소 확인하기: 등록하신 이메일 주소를 확인해 주세요.<br><br>")
         .append("인증 번호확인: 아래 인증번호를 확인한 후 회원가입 페이지 인증번호 란에 작성 해 주신 후 이메일 주소를 인증해 주세요.<br><br>")
-        .append("["+codeValue+"]<br><br>")
+        .append(""+codeValue+"<br><br>")
         .append("인증 완료: 인증번호를 기입하면 이메일 인증 절차가 완료됩니다!<br><br>")
-        .append("중요 사항: 인증 링크는 발송 후 3분 이내에 인증 완료를 해주셔야 합니다. 그렇지 않을 경우, 인증 절차를 다시 시작해야 할 수 있습니다.<br><br>")
-        .append("문제가 있거나 질문이 있으시면 언제든지 저희에게 연락해 주세요. 감사합니다!");
+        .append("중요 사항: 인증 링크는 발송 후 3분 이내에 인증 완료를 해주셔야 합니다. 그렇지 않을 경우, 인증 절차를 다시 시작해야 할 수 있습니다.<br><br>");
 
         String content = sb.toString();
 		

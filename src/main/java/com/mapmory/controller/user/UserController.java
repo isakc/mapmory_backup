@@ -189,8 +189,8 @@ public class UserController {
 	
 	// @GetMapping("/getSignUpView")  // get 방식으로 접근할 수 없게 막는다.
 	@PostMapping("/getSignUpView")
-	public void getSignUpView(Model model, @RequestParam String[] checked,
-			HttpServletRequest request) {
+	public String getSignUpView(Model model, @RequestParam String[] checked,
+			HttpServletRequest request, HttpServletResponse response) {  // HttpServletResponse response
 		
 		// refactoring 필요... -> 무엇이 check되었는지를 파악해야 함
 		System.out.println("checked : "+ Arrays.asList(checked));
@@ -202,6 +202,14 @@ public class UserController {
 			SocialUserInfo socialUserInfo = userService.getSocialInfo(request);
 			System.out.println("getSignUpview : : :: : : : : : : : : : : :" +socialUserInfo);
 			model.addAttribute("socialUserInfo", socialUserInfo);
+			
+			Cookie emailCookie = new Cookie("EMAILAUTHKEY", null);
+			emailCookie.setMaxAge(0);
+			response.addCookie(emailCookie);
+			
+			Cookie phoneCookie = new Cookie("PHONEAUTHKEY", null);
+			phoneCookie.setMaxAge(0);
+			response.addCookie(phoneCookie);
 		} else {
 	         SocialUserInfo socialUserInfo = new SocialUserInfo();
 	         socialUserInfo.setGender("U");
@@ -210,6 +218,9 @@ public class UserController {
 				
 		model.addAttribute("user", User.builder().build());
 		
+		System.out.println("controller finished");
+		
+		return "/user/getSignUpView";
 	}	
 
 	
@@ -645,8 +656,9 @@ public class UserController {
 		if(isSuspended.equals("true")) {
 			
 			String endSuspensionDate = suspendMap.get("endSuspensionDate");
+			// System.out.println("DB로부터 가져온 정지 시작 일");
 			 user.setEndSuspensionDate(LocalDateTime.parse(endSuspensionDate).toLocalDate());
-			 System.out.println(user.getEndSuspensionDate());
+			 // System.out.println(user.getEndSuspensionDate());
 		}
 			
 			// user.setEndSuspensionDate(java.time.LocalDate.parse(suspendMap.get("endSuspensionDate")));

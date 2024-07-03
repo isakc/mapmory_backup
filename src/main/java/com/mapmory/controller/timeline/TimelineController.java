@@ -255,7 +255,8 @@ public class TimelineController {
 	
 	@GetMapping("getDetailTimeline")
 	public String getDetailTimeline(Model model,
-			@RequestParam(value="recordNo", required = true) int recordNo,
+			@RequestParam(name="recordNo", required = true) int recordNo,
+			@RequestParam(name="badImageCount", required = false) Integer badImageCount,
 			HttpServletRequest request
 			) throws Exception,IOException {
 		Record record=timelineService.getDetailTimeline(recordNo);
@@ -268,10 +269,12 @@ public class TimelineController {
 		if(record.getRecordText()!=null && !record.getRecordText().trim().equals("")) {
 			record.setRecordText(textToImage.processImageTags(record.getRecordText()));
 		}
+		if(badImageCount==null) badImageCount=0;
 		
 		model.addAttribute("apiKey", kakaoMapApiKey);
 		model.addAttribute("restKey",restKey);
 		model.addAttribute("updateCountText", TimelineUtil.updateCountToText(record.getUpdateCount()));
+		model.addAttribute("badImageCount",badImageCount);
 		model.addAttribute("record",record);
 		model.addAttribute("selectDay",record.getCheckpointDate().toString().substring(0, 10));
 		
@@ -295,12 +298,15 @@ public class TimelineController {
 		
 		 // 추천 // 
 		if(record.getRecordText()!=null && !record.getRecordText().trim().equals("")) {
-			recommendService.addSearchData(record); Recommend recommend =
-			recommendService.getRecordData(record, record.getRecordNo());
+			Recommend recommend = recommendService.getRecordData(record, record.getRecordNo());
 			recommend.setPositive(recommendService.getPositive(record.getRecordText()));
-			System.out.println("positive : "+recommend.getPositive());
-			recommendService.updateDataset(recommend);
-			recommendService.saveDatasetToCSV(recommend, "aitems-8982956307867"); // 추천
+			if(recommend.getPositive() > 0) {
+				recommendService.addSearchData(record); 
+				System.out.println("positive : "+recommend.getPositive());
+				recommendService.updateDataset(recommend);
+				recommendService.saveDatasetToCSV(recommend, "aitems-8982956307867"); // 추천
+			}
+			
 		}
 		//
 				
@@ -318,7 +324,9 @@ public class TimelineController {
 			) throws Exception,IOException {
 		
 //		record.setMediaName( timelineUtil.mediaUrlToName(record.getMediaName()) );
-		record = timelineUtil.uploadImageFile(record, imageFile);
+		Map <String,Object> uploadImageMap=timelineUtil.uploadImageFile(record, imageFile);
+		record = (Record)uploadImageMap.get("record");
+		int badImageCount=(int)uploadImageMap.get("badImageCount");
 		record = timelineUtil.uploadMediaFile(record, mediaFile);
 		
 		record.setHashtag(TimelineUtil.hashtagTextToList(hashtagText, record.getRecordNo()));
@@ -371,7 +379,7 @@ public class TimelineController {
 		}
 		//
 		
-		String uri="?recordNo="+record.getRecordNo();
+		String uri="?recordNo="+record.getRecordNo()+"&badImageCount="+badImageCount;
 		return "redirect:/timeline/getDetailTimeline"+uri;
 
 	}
@@ -500,7 +508,7 @@ public class TimelineController {
 			}
 		}
 		record.setUpdateCount(-1);
-		record = timelineUtil.uploadImageFile(record, imageFile);
+		record = (Record)timelineUtil.uploadImageFile(record, imageFile).get("record");
 		record = timelineUtil.uploadMediaFile(record, mediaFile);
 		
 		record.setHashtag(TimelineUtil.hashtagTextToList(hashtagText, record.getRecordNo()));
@@ -528,7 +536,7 @@ public class TimelineController {
 	
 	@GetMapping("updateTimecapsule")
 	public String updateTimecapsuleView(Model model,
-			@RequestParam(value="recordNo", required = false) Integer recordNo) throws Exception,IOException {
+			@RequestParam(name="recordNo", required = true) Integer recordNo) throws Exception,IOException {
 		Record record = timelineService.getDetailTimeline(recordNo);
 		record=timelineUtil.imageNameToByte(record);
 		record=timelineUtil.mediaNameToByte(record);
@@ -549,7 +557,7 @@ public class TimelineController {
 			HttpServletRequest request
 			) throws Exception,IOException {
 //		record.setMediaName( timelineUtil.mediaUrlToName(record.getMediaName()) );
-		record = timelineUtil.uploadImageFile(record, imageFile);
+		record = (Record)timelineUtil.uploadImageFile(record, imageFile).get("record");
 		record = timelineUtil.uploadMediaFile(record, mediaFile);
 		
 		record.setHashtag(TimelineUtil.hashtagTextToList(hashtagText, record.getRecordNo()));
@@ -668,16 +676,36 @@ public class TimelineController {
 			@RequestParam(name="imageFile",required = false) List<MultipartFile> imageFile,
 			HttpServletRequest request
 			) throws Exception,IOException {
-				record.setRecordTitle(record.getCheckpointAddress()+"_"
-				+LocalDateTime.now(ZoneId.of("Asia/Seoul")).toString().replace("T"," ").split("\\.")[0]);
+				if(record.getRecordTitle()==null || record.getRecordTitle().trim().equals("")) {
+					if(record.getTimecapsuleType()==0) {
+						record.setRecordTitle(record.getCheckpointAddress()+"_"+record.getCheckpointDate());
+					}else {
+						if(!(record.getCheckpointAddress()==null || record.getCheckpointAddress().trim().equals("")) 
+								&& !(record.getD_DayDate()==null || record.getD_DayDate().trim().equals(""))) {
+							record.setRecordTitle(record.getCheckpointAddress()+"_"+record.getD_DayDate());
+						}else {
+							if(record.getRecordTitle()==null ||record.getRecordTitle().trim().equals("")){
+								 record.setRecordTitle("임시저장된 타임캡슐_"
+								+LocalDateTime.now(ZoneId.of("Asia/Seoul")).toString().replace("T", " ").split("\\.")[0]);
+							}
+						}
+					}
+				}
+				
+				
 				record.setUpdateCount(-1);
-				record.setTempType(0);
-				record.setTimecapsuleType(0);
 				record.setCategoryNo(0);
+				if(record.getD_DayDate()==null || record.getD_DayDate().trim().equals("")) record.setD_DayDate(null);
+				if(record.getCheckpointDate()==null || record.getCheckpointDate().trim().equals("")) record.setCheckpointDate(null);
 				
 				int recordNo=timelineService.addTimeline(record);
 				String param="?recordNo="+recordNo;
-				return "redirect:/timeline/updateTimeline"+param;
+
+				if(record.getTimecapsuleType()==0) {
+					return "redirect:/timeline/updateTimeline"+param;
+				}else {
+					return "redirect:/timeline/updateTimecapsule"+param;
+				}
 	}
 	
 	

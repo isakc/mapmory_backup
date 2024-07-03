@@ -8,7 +8,6 @@
 <link rel="stylesheet" href="/css/5/cosmo/bootstrap.css">
 <link rel="stylesheet" href="/css/common/footer.css">
 <link rel="stylesheet" href="/css/timeline/timeline.css">
-<link rel="stylesheet" href="/css/timeline/getDetailTimecapsule.css">
 <style type="text/css">
 #map {
     position: fixed; /* 상단에 고정 */
@@ -52,7 +51,7 @@
 	<div class="card border-primary" th:id="getDetailTimecapsule" th:name="getDetailTimecapsule">
   		<div class="card-body">
     		<h4 class="card-title">
- 				<span id="recordTitle" th:text="${record.recordTitle}" class="ellipsis" style="white-space: pre-wrap;"></span><br/>
+ 				<span id="recordTitle" th:text="${record.recordTitle}" class="ellipsis"></span><br/>
  			</h4>
 			<div style="text-align: right;">
 	    		<h4 class="card-badge">
@@ -60,8 +59,8 @@
 	 					<img th:src="'data:image/png;base64,' + ${record.categoryImojiByte}" style="height:18px;"/>
 	 					<span th:text="${record.categoryName}"></span>
 	 				</span>
-	 				<span class="badge bg-primary" th:text="${updateCountText}"></span>
-	 				<span class="badge bg-primary" th:text="${record.sharedDate!=null ? '공유됨' : '비공유'}"></span>
+	 				<!-- <span class="badge bg-primary" th:text="${updateCountText}"></span>
+	 				<span class="badge bg-primary" th:text="${record.sharedDate!=null ? '공유됨' : '비공유'}"></span> -->
 	 			</h4>
 			</div>
     		<div class="card-text">
