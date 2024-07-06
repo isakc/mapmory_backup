@@ -241,20 +241,6 @@ public class CommunityRestController {
 		return ResponseEntity.ok(replyLikeList);
 	}
 	
-	//사용자별 커뮤니티 로그 기록
-	@GetMapping("/rest/getCommunityLogsList/{userId}")
-	public ResponseEntity<Map<String, Object>> getCommunityLogsList(Search search, @PathVariable String userId, HttpServletRequest request) throws Exception {
-	
-		userId = redisUtil.getSession(request).getUserId();
-		
-		CommunityLogs communityLogs = new CommunityLogs();
-		communityLogs.setUserId(userId);
-		
-		Map<String, Object> result = communityService.getCommunityLogsList(search, communityLogs);
-		
-		return ResponseEntity.ok(result);
-	}
-	
 	//댓글 수정
 	@PostMapping("/rest/updateReply/{replyNo}")
 	public ResponseEntity<Reply> updateReply(@PathVariable("replyNo") int replyNo, @RequestParam("userId") String userId, 
@@ -329,52 +315,7 @@ public class CommunityRestController {
 		
 		return ResponseEntity.ok(communityLogs);
 	}
-	
-//	//좋아요 싫어요 상태 반환
-//	@PostMapping("/rest/getReactionStatus")
-//	public ResponseEntity<?> getReactionStatus(@RequestBody CommunityLogs communityLogs,  @RequestParam(value = "replyNo", required = false) Integer replyNo, 
-//							String userId, HttpServletRequest request) throws Exception {
-//		
-//		userId = redisUtil.getSession(request).getUserId();
-//		communityLogs.setUserId(userId);
-//		
-//		boolean alreadyReaction = communityService.getReactionStatusList(communityLogs);
-//	
-//		if(!alreadyReaction) {
-//			
-//			try {
-//				return ResponseEntity.ok().build();
-//			} catch (Exception e) {
-//				e.printStackTrace();
-//				return ResponseEntity.status(HttpStatus.SC_INTERNAL_SERVER_ERROR).build();
-//			}	
-//			} else {
-//				return ResponseEntity.badRequest().body("이미 감정 표현했습니다");
-//			}
-//	}
-
-	
-//	//커뮤니티 로그 추가
-//	@PostMapping("/rest/addCommunityLogs")
-//	public ResponseEntity<CommunityLogs> addCommunityLogs(@RequestBody CommunityLogs communityLogs, String userId, HttpServletRequest request) throws Exception {
-//		
-//		userId = redisUtil.getSession(request).getUserId();
-//		
-//		communityLogs.setUserId(userId);
-//		
-//		communityService.addCommunityLogs(communityLogs);
-//		return ResponseEntity.ok(communityLogs);
-//	}
-	
-	//즐겨찾기 취소
-	@DeleteMapping("/rest/deleteBookmark/{userId}/{recordNo}")
-	public String deleteCommunityLogs(@PathVariable String userId, @PathVariable int recordNo, HttpServletRequest request) throws Exception {
-
-		userId = redisUtil.getSession(request).getUserId();
-		
-		return "redirect: community/getDetailSharedRecord/"+recordNo;
-	}
-	
+			
 	//조회수
 	@PostMapping("/rest/getSharedRecordViewCount/{recordNo}")
 	public ResponseEntity<Integer> getSharedRecordViewCount(Search search, @PathVariable int recordNo) throws Exception {
@@ -396,14 +337,7 @@ public class CommunityRestController {
 		return ResponseEntity.ok(dislikeCount);
 	}	
 	
-	//즐겨찾기 확인
-	@PostMapping("/rest/getBookmark")
-	public ResponseEntity<Integer> getBookmark(Search search, @RequestBody CommunityLogs communityLogs, @RequestParam(required = false) Integer replyNo) throws Exception {
-	
-		int bookmark = communityDao.checkDuplicateLogs(communityLogs.getUserId(), communityLogs.getRecordNo(), communityLogs.getReplyNo(), communityLogs.getLogsType());
-		return ResponseEntity.ok(bookmark);
-	}
-	
+
 	//신고하기
 	@PostMapping("/rest/doReport")
 	public ResponseEntity<Report> doReport(@RequestBody Report report) throws Exception {
@@ -508,7 +442,7 @@ public class CommunityRestController {
 	
 	//차단 해제
 	@DeleteMapping("/rest/deleteBlock/{userId}/{targetId}")
-	public String deleteReply(@PathVariable String userId, @PathVariable String targetId, HttpServletRequest request) throws Exception {
+	public String deleteBlockUser(@PathVariable String userId, @PathVariable String targetId, HttpServletRequest request) throws Exception {
 		
 		userId = redisUtil.getSession(request).getUserId();
 		communityService.deleteBlockedUser(userId, targetId);

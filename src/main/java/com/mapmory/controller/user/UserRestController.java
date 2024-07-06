@@ -1,6 +1,7 @@
 package com.mapmory.controller.user;
 
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
@@ -137,17 +138,6 @@ public class UserRestController {
 	@Value("${object.timeline.imoji}")
 	private String TIMELINE_EMOJI;
 	
-	/*
-	@Value("${object.profile.folderName}")
-	private String PROFILE_FOLDER_NAME;
-	
-	@Value("${object.timeline.image}")
-	private String TIMELINE_THUMBNAIL;
-	
-	@Value("${object.timeline.imoji}")
-	private String TIMELINE_EMOJI;
-	*/
-	
 	@Value("${kakao.client.Id}")
     private String kakaoClientId;
     
@@ -182,7 +172,7 @@ public class UserRestController {
 		
 		if( !isValid) {
 
-			return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("wrong password");
+			return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("wrong");
 			
 		} else {
 			
@@ -475,42 +465,6 @@ public class UserRestController {
 		return ResponseEntity.ok(userId);
 	}
 	
-	@PostMapping("/getDailyStatistics")
-	public ResponseEntity<List<LoginDailyLog>> getDailyStatistics(@RequestBody Map<String, LocalDate> map) {
-		
-		LocalDate day = map.get("selectDate");
-		
-		System.out.println("which day ? " + day);
-		
-		LoginSearch search = LoginSearch.builder()
-				.selectLoginDate(day)
-				.build();
-		
-		List<LoginDailyLog> result = userService.getUserLoginDailyList(search);
-		
-		return ResponseEntity.ok(result);
-
-	}
-	
-
-	@PostMapping("/getMonthlyStatistics")
-	public ResponseEntity<List<LoginMonthlyLog>> getMonthlyStatistics(@RequestBody Map<String, String> map) {
-		
-		String year = map.get("year");
-		String month = map.get("month");
-		
-		// System.out.println("YYYY-MM : " + String.valueOf(year) + "-" + String.valueOf(month));
-		System.out.println("YYYY-MM : " + year + "-" + month);
-		
-		LoginSearch search = LoginSearch.builder()
-				.year(year)
-				.month(month)
-				.build();
-		
-		List<LoginMonthlyLog> result = userService.getUserLoginMonthlyList(search);
-		
-		return ResponseEntity.ok(result);
-	}
 	
 	@PostMapping("/updateUserInfo")
 	public ResponseEntity<Boolean> updateUserInfo(HttpServletRequest request, @RequestBody User user) throws Exception {
@@ -567,15 +521,9 @@ public class UserRestController {
 		// return "redirect:/user/getProfile?userId="+userId;
 		return ResponseEntity.ok(true);
 	}
-
-	@PostMapping("/updateFollowState")
-	public ResponseEntity<Boolean> updateFollowState() {
-		
-		return ResponseEntity.ok(true);
-	}
 	
 	@PostMapping("/updatePassword")
-	public ResponseEntity<Boolean> updatePassword(HttpServletResponse response, @RequestBody Map<String, String> map) {
+	public ResponseEntity<Boolean> updatePassword(HttpServletRequest request, HttpServletResponse response, @RequestBody Map<String, String> map) throws IOException {
 		
 		String userId = map.get("userId");
 		String password = map.get("userPassword");
@@ -590,6 +538,23 @@ public class UserRestController {
 		else
 			return ResponseEntity.ok(false);
 			*/
+		
+		// loginService.logout(request, response);
+		
+		// 긴급 땜빵
+		Cookie[] cookies = request.getCookies();
+		for(Cookie cookie : cookies ) {
+			
+			if(cookie.getName().equals("JSESSIONID")) {
+				
+				redisUtil.delete(cookie.getValue());
+
+				cookie.setMaxAge(0);
+				cookie.setPath("/");
+				response.addCookie(cookie);
+			}
+		}
+		
 		return ResponseEntity.ok(result);
 	}
 	
@@ -800,24 +765,42 @@ public class UserRestController {
 			return ResponseEntity.internalServerError().body(false);
 	}
 	
-	@PostMapping("/admin/getDailyLoginStatistics")
-	public ResponseEntity<List<LoginDailyLog>> getDailyLoginStatistics() {
+
+	@PostMapping("/admin/getDailyStatistics")
+	public ResponseEntity<List<LoginDailyLog>> getDailyStatistics(@RequestBody Map<String, LocalDate> map) {
 		
-		LoginSearch search = null;
+		LocalDate day = map.get("selectDate");
 		
-		List<LoginDailyLog> temp = userService.getUserLoginDailyList(search);
+		System.out.println("which day ? " + day);
 		
-		return ResponseEntity.ok(temp);
+		LoginSearch search = LoginSearch.builder()
+				.selectLoginDate(day)
+				.build();
+		
+		List<LoginDailyLog> result = userService.getUserLoginDailyList(search);
+		
+		return ResponseEntity.ok(result);
+
 	}
 	
-	@PostMapping("/admin/getMonthlyLoginStatistics")
-	public ResponseEntity<List<LoginMonthlyLog>> getMonthlyLoginStatistics() {
+
+	@PostMapping("/admin/getMonthlyStatistics")
+	public ResponseEntity<List<LoginMonthlyLog>> getMonthlyStatistics(@RequestBody Map<String, String> map) {
 		
-		LoginSearch search = null;
+		String year = map.get("year");
+		String month = map.get("month");
 		
-		List<LoginMonthlyLog> temp = userService.getUserLoginMonthlyList(search);
+		// System.out.println("YYYY-MM : " + String.valueOf(year) + "-" + String.valueOf(month));
+		System.out.println("YYYY-MM : " + year + "-" + month);
 		
-		return ResponseEntity.ok(temp);
+		LoginSearch search = LoginSearch.builder()
+				.year(year)
+				.month(month)
+				.build();
+		
+		List<LoginMonthlyLog> result = userService.getUserLoginMonthlyList(search);
+		
+		return ResponseEntity.ok(result);
 	}
 	
 	@PostMapping("/admin/deleteSuspendUser")
@@ -874,7 +857,7 @@ public class UserRestController {
 	@ResponseBody
 	public ResponseEntity<Boolean> sendEmailAuthNum(String email, HttpServletResponse response) {
 
-
+		/// service로 빼는 것이 좋음.
 		//난수의 범위 111111 ~ 999999 (6자리 난수)
 		Random random = new Random();
 		int codeValue = random.nextInt(888888)+111111;
@@ -888,12 +871,12 @@ public class UserRestController {
 		StringBuilder sb = new StringBuilder();
 
 		sb.append("안녕하세요,<br><br>")
-        .append("저희 Mapmory 서비스에 가입해 주셔서 감사합니다! 회원가입을 완료하려면 이메일 주소를 인증해야 합니다. 아래의 단계를 따라 주세요:<br><br>")
+        .append("저희 Mapmory 서비스를 이용해주셔서 감사합니다! 요청하신 인증번호를 전달해 드립니다. 아래의 단계를 따라 주세요:<br><br>")
         .append("이메일 주소 확인하기: 등록하신 이메일 주소를 확인해 주세요.<br><br>")
-        .append("인증 번호확인: 아래 인증번호를 확인한 후 회원가입 페이지 인증번호 란에 작성 해 주신 후 이메일 주소를 인증해 주세요.<br><br>")
+        .append("인증 번호확인: 아래 인증번호를 인증번호 란에 작성 해 주신 후 이메일 주소를 인증해 주세요.<br><br>")
         .append(""+codeValue+"<br><br>")
         .append("인증 완료: 인증번호를 기입하면 이메일 인증 절차가 완료됩니다!<br><br>")
-        .append("중요 사항: 인증 링크는 발송 후 3분 이내에 인증 완료를 해주셔야 합니다. 그렇지 않을 경우, 인증 절차를 다시 시작해야 할 수 있습니다.<br><br>");
+        .append("중요 사항: 발송 후 3분 이내에 인증 완료를 해주셔야 합니다. 그렇지 않을 경우, 인증 절차를 다시 시작해야 할 수 있습니다.<br><br>");
 
         String content = sb.toString();
 		
@@ -1055,7 +1038,7 @@ public class UserRestController {
 		if(!needToChangePassword) {
 		
 			// 비밀번호 변경 후, 반드시 기존 쿠키와 세션을 제거할 것.
-			return ResponseEntity.ok("passwordExceeded");  // 비밀번호 변경을 권장하기 위한 표시
+			return ResponseEntity.ok("passwordExceeded "+role);  // 비밀번호 변경을 권장하기 위한 표시
 			
 		} else {
 
